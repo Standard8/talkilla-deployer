@@ -1,0 +1,17 @@
+{
+  "name": "talkilla_deployer",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "awsbox": "0.4.x",
+    "express": "3.0.x",
+    "irc": "0.3.3"
+  },
+  "devDependencies": {
+  },
+  "scripts": {
+  },
+  "engines": {
+    "node": ">= 0.8.12"
+  }
+}
