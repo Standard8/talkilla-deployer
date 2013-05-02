@@ -3,12 +3,10 @@
 var express = require('express'),
     util = require('util'),
     http = require('http'),
+    irc = require('./lib/irc.js'),
     app = express();
 
 console.log("deploy server starting up");
-
-app.use(express.bodyParser());
-app.use(express.static('.'));
 
 function Deployer() {
   this.initServer();
