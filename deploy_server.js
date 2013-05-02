@@ -73,7 +73,7 @@ Deployer.prototype._deployNewCode = function(latestSha, cb) {
 
 Deployer.prototype._pullLatest = function(cb) {
   var self = this;
-  git.pull(this._codeDir, 'git://github.com/mozilla/talkilla', 'dev', function(l) {
+  git.pull(this._codeDir, 'git://github.com/mozilla/talkilla', 'master', function(l) {
     self.emit('progress', l);
   }, function(err) {
     if (err)
@@ -146,9 +146,20 @@ deployer.on('ready', function() {
 
   app.get('/', function(req, res) {
     var what = "idle";
-    // XXX fill this in.
+    if (deployer._busy)
+      what = 'busy';
     res.send(what);
   });
+
+  app.get('/check', function(req, res) {
+    deployer.checkForUpdates();
+    res.send('ok');
+  });
+
+  // Check for updates every hour for now.
+  setInterval(function() {
+    deployer.checkForUpdates();
+  }, (1000 * 60 * 60));
 
   server.listen(process.env['PORT'] || 8080, function() {
     console.log("deploy server bound to " + (process.env['PORT'] || 8080));
