@@ -10,6 +10,8 @@ var express = require('express'),
     path = require('path'),
     app = express();
 
+var latestSha = null;
+
 console.log("deploy server starting up");
 
 function Deployer() {
@@ -29,6 +31,7 @@ function Deployer() {
   var self = this;
 
   git.init(this._codeDir, function(err) {
+    console.log("init code is ", err);
     if (err) {
       console.log("can't init code dir:", err);
       process.exit(1);
@@ -39,7 +42,7 @@ function Deployer() {
 
 util.inherits(Deployer, events.EventEmitter);
 
-Deployer.prototype._completeUpdate = function(latestSha, cb) {
+Deployer.prototype._completeUpdate = function(cb) {
   var self = this;
 
   irc.send("deployment of " + latestSha + " completed successfully");
@@ -53,7 +56,7 @@ Deployer.prototype._completeUpdate = function(latestSha, cb) {
   });
 };
 
-Deployer.prototype._deployNewCode = function(latestSha, cb) {
+Deployer.prototype._deployNewCode = function(cb) {
   var self = this;
 
   self.emit('info', 'pushing to server');
@@ -66,7 +69,7 @@ Deployer.prototype._deployNewCode = function(latestSha, cb) {
         return cb(res);
 
       self.emit('info', 'push successful');
-      self._completeUpdate(latestSha, cb);
+      self._completeUpdate(cb);
     }
   );
 }
@@ -80,12 +83,13 @@ Deployer.prototype._pullLatest = function(cb) {
       return cb(err);
 
     git.currentSHA(self._codeDir, function(err, latest) {
-      self.emit('info', 'latest available sha is ' + latest);
+      latestSha = latest;
+      self.emit('info', 'latest available sha is ' + latestSha);
 
       fs.readFile(self._shaFile, function(err, data) {
         if (!err) {
           self.emit('info', 'last sha is ' + data);
-          if (data != latest) {
+          if (data != latestSha) {
             self.emit('info', 'update required');
           }
           else {
@@ -97,7 +101,7 @@ Deployer.prototype._pullLatest = function(cb) {
         else {
           self.emit('info', 'no lastSha file, assuming update necessary (err was ' + err + ')');
         }
-        self._deployNewCode(latest, cb);
+        self._deployNewCode(cb);
       });
     });
   });
