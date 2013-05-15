@@ -45,7 +45,7 @@ util.inherits(Deployer, events.EventEmitter);
 Deployer.prototype._completeUpdate = function(cb) {
   var self = this;
 
-  irc.send("deployment of " + latestSha + " completed successfully");
+  irc.send("deployment of " + latestSha + " to talkilla-stage completed successfully");
   irc.disconnect();
 
   fs.writeFile(self._shaFile, latestSha, function(err) {
@@ -120,7 +120,7 @@ Deployer.prototype.checkForUpdates = function() {
     if (err)
       self.emit('error', err);
 
-    irc.send("deployment of " + latestSha + " failed :-(");
+    irc.send("deployment of " + latestSha + " failed :-( - please poke Standard8");
     irc.disconnect();
 
     self._busy = false;
