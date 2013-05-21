@@ -144,7 +144,7 @@ console.log("deployment log dir is:", '.');
 });
 
 deployer.on('ready', function() {
-  deployer.checkForUpdates();
+  //deployer.checkForUpdates();
 
   var server = http.createServer(app);
 
@@ -166,9 +166,11 @@ deployer.on('ready', function() {
   });
 
   // Check for updates every hour for now.
+  /*
   setInterval(function() {
     deployer.checkForUpdates();
   }, (1000 * 60 * 60));
+  */
 
   server.listen(process.env['PORT'] || 8080, function() {
     console.log("deploy server bound to " + (process.env['PORT'] || 8080));
