@@ -160,6 +160,11 @@ deployer.on('ready', function() {
     res.send('ok');
   });
 
+  app.post('/check', function(req, res) {
+    deployer.checkForUpdates();
+    res.send('ok');
+  });
+
   // Check for updates every hour for now.
   setInterval(function() {
     deployer.checkForUpdates();
