@@ -180,11 +180,11 @@ Deployer.prototype._onMakeCoverServer = function() {
   }.bind(this));
 };
 
-Deployer.prototype._onFinished = function(err, irc, msg, fakeFinished) {
+Deployer.prototype._onFinished = function(err, sendIrc, msg, fakeFinished) {
   if (!fakeFinished)
     this._busy = false;
 
-  if (irc) {
+  if (sendIrc) {
     if (err)
       irc.send(msg + " :-( - please poke Standard");
     else
@@ -196,7 +196,7 @@ Deployer.prototype._onFinished = function(err, irc, msg, fakeFinished) {
   else
     this.emit('info', msg);
 
-  if (irc)
+  if (sendIrc)
     irc.disconnect();
 };
 
