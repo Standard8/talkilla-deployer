@@ -100,7 +100,7 @@ Deployer.prototype._onPullLatest = function() {
         return;
       }
 
-      git.currentSHA(self._codeDir, function(err, latest) {
+      git.currentSHA(this._codeDir, function(err, latest) {
         latestSha = latest;
         this.emit('info', 'latest available sha is ' + latestSha);
 
@@ -144,8 +144,7 @@ Deployer.prototype._onDeployNewCode = function() {
 };
 
 Deployer.prototype._onCompleteUpdate = function() {
-
-  fs.writeFile(self._shaFile, latestSha, function(err) {
+  fs.writeFile(this._shaFile, latestSha, function(err) {
     if (err) {
       this.emit('finished', true, true, "completed update, but couldn't write latestSha file");
       return;
@@ -159,7 +158,7 @@ Deployer.prototype._onRunCodeCoverage = function() {
   var coverDir = __dirname + "/data/code";
 
   // Make install to run the data
-  spawnCommand(self, 'make', ['install'], coverDir, function(err) {
+  spawnCommand(this, 'make', ['install'], coverDir, function(err) {
     if (err) {
       this.emit('finished', true, true, "Error during make install for code coverage report", true);
       return;
@@ -172,7 +171,7 @@ Deployer.prototype._onRunCodeCoverage = function() {
 Deployer.prototype._onMakeCoverServer = function() {
   var coverDir = __dirname + "/data/code";
 
-  spawnCommand(self, 'make', ['cover_server'], coverDir, function(err) {
+  spawnCommand(this, 'make', ['cover_server'], coverDir, function(err) {
     if (err) {
       this.emit('finished', true, true, "Error making code coverage report", true);
       return;
