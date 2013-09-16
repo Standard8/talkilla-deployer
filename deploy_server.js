@@ -184,8 +184,6 @@ Deployer.prototype._onFinished = function(err, irc, msg, fakeFinished) {
   if (!fakeFinished)
     this._busy = false;
 
-  irc = false;
-
   if (irc) {
     if (err)
       irc.send(msg + " :-( - please poke Standard");
