@@ -151,7 +151,7 @@ Deployer.prototype._onCompleteUpdate = function() {
     }
 
     this.emit('finished', false, true, "deployment of " + latestSha + " to talkilla-stage completed successfully");
-  });
+  }.bind(this));
 };
 
 Deployer.prototype._onRunCodeCoverage = function() {
@@ -165,7 +165,7 @@ Deployer.prototype._onRunCodeCoverage = function() {
     }
 
     this.emit('makeCoverServer');
-  });
+  }.bind(this));
 };
 
 Deployer.prototype._onMakeCoverServer = function() {
@@ -177,7 +177,7 @@ Deployer.prototype._onMakeCoverServer = function() {
       return;
     }
     this.emit('info', "Finished code coverage");
-  });
+  }.bind(this));
 };
 
 Deployer.prototype._onFinished = function(err, irc, msg, fakeFinished) {
