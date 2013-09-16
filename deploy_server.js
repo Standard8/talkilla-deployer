@@ -213,7 +213,7 @@ var deployer = new Deployer();
 deployer.on('ready', function() {
   var server = http.createServer(app);
 
-  app.get('/', function(req, res) {
+  app.get('/status', function(req, res) {
     var what = "idle";
     if (deployer._busy)
       what = 'busy';
@@ -230,7 +230,7 @@ deployer.on('ready', function() {
     res.send('ok');
   });
 
-  app.use("/coverage", express.static(__dirname + "/data/code/coverage/lcov-report"));
+  app.use("/", express.static(__dirname + "/data/code/coverage/lcov-report"));
 
 
   // Check for updates every hour for now.
