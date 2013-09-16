@@ -120,7 +120,7 @@ Deployer.prototype._onPullLatest = function() {
           }
           this.emit('deployNewCode');
           this.emit('runCodeCoverage');
-      });
+      }.bind(this));
     }.bind(this));
   }.bind(this));
 };
