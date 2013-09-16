@@ -130,7 +130,7 @@ Deployer.prototype._onDeployNewCode = function() {
   git.push(this._codeDir, deployServer,
     function (d) {
       this.emit('progress', d);
-    },
+    }.bind(this),
     function(res) {
       if (res) {
         this.emit('finished', true, true, 'Error deploying code to staging server');
@@ -139,7 +139,7 @@ Deployer.prototype._onDeployNewCode = function() {
 
       this.emit('info', 'push successful');
       this.emit('completeUpdate');
-    }
+    }.bind(this)
   );
 };
 
