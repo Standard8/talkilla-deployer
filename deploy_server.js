@@ -186,7 +186,7 @@ Deployer.prototype._onFinished = function(err, sendIrc, msg, fakeFinished) {
 
   if (sendIrc) {
     if (err)
-      irc.send(msg + " :-( - please poke Standard");
+      irc.send(msg + " :-( - please poke Standard8");
     else
       irc.send(msg);
   }
