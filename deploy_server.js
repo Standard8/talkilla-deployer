@@ -230,7 +230,8 @@ deployer.on('ready', function() {
     res.send('ok');
   });
 
-  app.use("/", express.static(__dirname + "/data/code/coverage/lcov-report"));
+  app.use("/", express.static(__dirname + "/static"));
+  app.use("/coverage/", express.static(__dirname + "/data/code/coverage/lcov-report"));
 
 
   // Check for updates every hour for now.
