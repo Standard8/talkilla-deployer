@@ -16,7 +16,11 @@ var express = require('express'),
 
 var latestSha = null;
 
-console.log("deploy server starting up");
+function log(msg) {
+  console.log(new Date().toISOString() + ' ' + msg);
+}
+
+log("deploy server starting up");
 
 function splitAndEmit(chunk, cb) {
   if (chunk) chunk = chunk.toString();
@@ -56,14 +60,14 @@ function Deployer() {
   this._codeDir = path.join(this._dataDir, 'code');
   if (!fs.existsSync(this._codeDir))
     fs.mkdirSync(this._codeDir);
-  console.log("code dir is:", this._codeDir);
+  log("code dir is:", this._codeDir);
 
   this._shaFile = path.join(this._dataDir, 'lastSha');
 
   git.init(this._codeDir, function(err) {
-    console.log("init code is ", err);
+    log("init code is ", err);
     if (err) {
-      console.log("can't init code dir:", err);
+      log("can't init code dir:", err);
       process.exit(1);
     }
     this.emit('ready');
@@ -206,7 +210,7 @@ var deployer = new Deployer();
   deployer.on(evName, function(data) {
     if (data !== null && data !== undefined && typeof data != 'string') data = JSON.stringify(data, null, 2);
     var msg = evName + (data ? (": " + data) : "");
-    console.log(msg);
+    log(msg);
   });
 });
 
@@ -242,6 +246,6 @@ deployer.on('ready', function() {
   */
 
   server.listen(process.env['PORT'] || 8080, function() {
-    console.log("deploy server bound to " + (process.env['PORT'] || 8080));
+    log("deploy server bound to " + (process.env['PORT'] || 8080));
   });
 });
