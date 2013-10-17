@@ -2,7 +2,9 @@ const child_process = require('child_process'),
 spawn = child_process.spawn;
 
 const masterRepoUrl = 'git://github.com/mozilla/talkilla';
-const deployServer = 'talkilla-stage.mozillalabs.com';
+const DEPLOY_HOSTNAME = process.env.DEPLOY_HOSTNAME || "talkilla-stage.mozillalabs.com";
+const BALANCER_NAME = process.env.BALANCER_NAME || "talkilla-stage";
+
 
 var express = require('express'),
     util = require('util'),
@@ -11,7 +13,11 @@ var express = require('express'),
     fs = require('fs'),
     events = require('events'),
     git = require('awsbox/lib/git.js'),
+    vm = require('awsbox/lib/vm.js'),
     path = require('path'),
+    jsel = require('JSONSelect'),
+    amazon = require('awssum-amazon'),
+    amazonElb = require('awssum-amazon-elb'),
     app = express();
 
 var latestSha = null;
@@ -75,9 +81,10 @@ function Deployer() {
 
   this.on('checkForUpdates', this._onCheckForUpdates.bind(this));
   this.on('pullLatest', this._onPullLatest.bind(this));
+  this.on('installNpm', this._onInstallNpm.bind(this));
   this.on('deployNewCode', this._onDeployNewCode.bind(this));
   this.on('completeUpdate', this._onCompleteUpdate.bind(this));
-  this.on('runCodeCoverage', this._onRunCodeCoverage.bind(this));
+  this.on('cleanUpOldVMs', this._onCleanUpOldVMs.bind(this));
   this.on('makeCoverServer', this._onMakeCoverServer.bind(this));
   this.on('finished', this._onFinished.bind(this));
 }
@@ -104,6 +111,7 @@ Deployer.prototype._onPullLatest = function() {
         return;
       }
 
+      // XXX get this from the real deploayed code
       git.currentSHA(this._codeDir, function(err, latest) {
         latestSha = latest;
         this.emit('info', 'latest available sha is ' + latestSha);
@@ -115,6 +123,7 @@ Deployer.prototype._onPullLatest = function() {
               this.emit('info', 'update required');
             }
             else {
+    this.emit('cleanUpOldVMs');
               this.emit('finished', false, false, 'no update required');
               return;
             }
@@ -122,29 +131,55 @@ Deployer.prototype._onPullLatest = function() {
           else {
             this.emit('info', 'no lastSha file, assuming update necessary (err was ' + err + ')');
           }
-          this.emit('deployNewCode');
-          this.emit('runCodeCoverage');
+//          this.emit('installNpm');
       }.bind(this));
     }.bind(this));
   }.bind(this));
 };
 
+
+
+Deployer.prototype._onInstallNpm = function() {
+  var coverDir = __dirname + "/data/code";
+
+  // Make install to run the data
+  spawnCommand(this, 'make', ['install'], coverDir, function(err) {
+    if (err) {
+      this.emit('finished', true, true, "Error during make install for code coverage report", true);
+      return;
+    }
+
+    this.emit('deployNewCode');
+    this.emit('makeCoverServer');
+  }.bind(this));
+};
+
 Deployer.prototype._onDeployNewCode = function() {
   this.emit('info', 'pushing to server');
-  git.push(this._codeDir, deployServer,
-    function (d) {
-      this.emit('progress', d);
-    }.bind(this),
-    function(res) {
-      if (res) {
-        this.emit('finished', true, true, 'Error deploying code to staging server');
-        return;
-      }
 
-      this.emit('info', 'push successful');
-      this.emit('completeUpdate');
-    }.bind(this)
-  );
+  var self = this;
+  var pr = function (d) {
+    self.emit('progress', d);
+  };
+
+  var p = spawn(path.join(__dirname, 'deploy_dev.js'), [], {
+    cwd: this._codeDir,
+    env: process.env
+  });
+
+  p.stdout.on('data', function(c) { splitAndEmit(c, pr); }.bind(this));
+  p.stderr.on('data', function(c) { splitAndEmit(c, pr); }.bind(this));
+
+  p.on('exit', function(res, signal) {
+    if (res != 0) {
+      this.emit('finished', true, true, 'Error deploying code to staging server');
+      return;
+    }
+
+    this.emit('info', 'push successful');
+    this.emit('completeUpdate');
+    this.emit('cleanUpOldVMs');
+  }.bind(this));
 };
 
 Deployer.prototype._onCompleteUpdate = function() {
@@ -158,18 +193,55 @@ Deployer.prototype._onCompleteUpdate = function() {
   }.bind(this));
 };
 
-Deployer.prototype._onRunCodeCoverage = function() {
-  var coverDir = __dirname + "/data/code";
+Deployer.prototype._onCleanUpOldVMs = function() {
+  var elb = new amazonElb.Elb({
+    'accessKeyId'     : process.env.AWS_ID,
+    'secretAccessKey' : process.env.AWS_SECRET,
+    'region'          : amazon.US_EAST_1
+  });
 
-  // Make install to run the data
-  spawnCommand(this, 'make', ['install'], coverDir, function(err) {
+  this.deployerElb = null;
+
+  elb.DescribeLoadBalancers(function(err, r) {
     if (err) {
-      this.emit('finished', true, true, "Error during make install for code coverage report", true);
+      this.emit('finished', true, true, "Failed to get list of ELBs");
+      return;
+    }
+    jsel.forEach("object:has(:root > .LoadBalancerName:val(?))", [ BALANCER_NAME ], r,
+      function(o) {
+        this.deployerElb = o;
+      }.bind(this));
+
+    if (!this.deployerElb) {
+      this.emit('finished', true, true, "Failed to find out ELB for: " + BALANCER_NAME);
       return;
     }
 
-    this.emit('makeCoverServer');
+    vm.list(function(err, r) {
+      if (err) {
+        this.emit('finished', true, true, "Failed to get list of vms");
+        return;
+      }
+
+      var vmsOld = [];
+      var vmsActive = [];
+      // only check the vms that have DEPLOY_HOSTNAME as a name
+      jsel.forEach("object:has(:root > .name:contains(?))", [ DEPLOY_HOSTNAME ], r,
+        function(o) {
+          // don't delete the current one
+          if (o.name.indexOf(latestSha) >= 0) {
+            this.emit('info', 'adding VM ' + o.name + '-' + o.instanceId);
+            elb.RegisterInstancesWithLoadBalancer({LoadBalancerName: this.deployerElb.LoadBalancerName, Instances: [{InstanceId: o.instanceId}]}, function(err, r) {
+console.log(JSON.stringify(err) + " " + JSON.stringify(r));
+});
+          } else {
+            this.emit('info', 'would decommission VM: ' + o.name + '-' + o.instanceId);
+          }
+        }.bind(this));
+    }.bind(this));
   }.bind(this));
+
+
 };
 
 Deployer.prototype._onMakeCoverServer = function() {
@@ -187,14 +259,14 @@ Deployer.prototype._onMakeCoverServer = function() {
 Deployer.prototype._onFinished = function(err, sendIrc, msg, fakeFinished) {
   if (!fakeFinished)
     this._busy = false;
-
+/*
   if (sendIrc) {
     if (err)
       irc.send(msg + " :-( - please poke Standard8");
     else
       irc.send(msg);
   }
-
+*/
   if (err)
     this.emit('error', msg);
   else
